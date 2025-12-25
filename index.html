@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Creator Portfolio | Echo</title>
+    <style>
+        /* === 1. 基础设置 === */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: #000;
+            color: #fff;
+            /* 关键点：禁止 body 默认滚动，交给 wrapper 来滚 */
+            overflow: hidden; 
+        }
+
+        /* === 2. 全屏滚动容器 (核心魔法) === */
+        .scroll-wrapper {
+            height: 100vh; /* 容器高度等于屏幕高度 */
+            overflow-y: scroll; /* 允许垂直滚动 */
+            
+            /* CSS Scroll Snap 核心代码 */
+            scroll-snap-type: y mandatory; /* y轴强制吸附 */
+            scroll-behavior: smooth; /* 平滑滚动 */
+        }
+
+        /* 隐藏滚动条 (让页面更干净) */
+        .scroll-wrapper::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+
+        /* === 3. 固定背景层 (不动) === */
+        .bg-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+        }
+        
+        .bg-container img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            opacity: 0.6;
+        }
+
+        /* === 4. 通用版块 (每一页) === */
+        .section {
+            height: 100vh; /* 强制每一页高度为屏幕高度 */
+            width: 100%;
+            position: relative;
+            display: flex;
+            align-items: center; /* 垂直居中 */
+            
+            /* 关键点：告诉浏览器每一页的开头是吸附点 */
+            scroll-snap-align: start; 
+        }
+
+        /* === 5. 第一页：Hero 样式 === */
+        .hero-section {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 4rem;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(0, 191, 255, 0.6);
+            margin-bottom: 20px;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: #ddd;
+            background: rgba(0,0,0,0.4);
+            padding: 10px 25px;
+            border-radius: 50px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* 跳动箭头 */
+        .scroll-down {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 3rem;
+            text-decoration: none;
+            animation: bounce 2s infinite;
+            cursor: pointer;
+            z-index: 50;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+            40% { transform: translateX(-50%) translateY(-15px); }
+            60% { transform: translateX(-50%) translateY(-7px); }
+        }
+
+        /* === 6. 第二页：LoRA 展示样式 === */
+        .lora-section {
+            padding-left: 10%; 
+            /* 渐变遮罩 */
+            background: linear-gradient(to right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 650px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            
+            /* 加一个小动画，让它滑进来时有点动感 */
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 1s ease;
+        }
+        
+        /* 当页面处于激活状态时显示的类 (配合JS使用效果更佳，这里暂时默认显示) */
+        /* 为了简化，我们直接让它显示，或者你可以配合JS做进场动画 */
+        .glass-card {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .glass-card h2 {
+            font-size: 2.8rem;
+            margin-bottom: 20px;
+            color: #00bfff;
+        }
+
+        .glass-card p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #ccc;
+            margin-bottom: 30px;
+        }
+
+        .showcase-grid {
+            display: flex;
+            gap: 20px;
+        }
+
+        .img-box {
+            width: 200px;
+            height: 280px;
+            background: #222;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s;
+        }
+
+        .img-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 191, 255, 0.3);
+        }
+
+        .img-box img {
+            width: 100%; height: 100%; object-fit: cover;
+            position: absolute; top: 0; left: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .img-after { opacity: 0; }
+        .img-box:hover .img-after { opacity: 1; }
+
+        .label {
+            position: absolute; bottom: 0; width: 100%;
+            padding: 8px 0; text-align: center;
+            background: rgba(0,0,0,0.8); font-size: 0.85rem; color: #fff;
+            pointer-events: none;
+        }
+
+        /* === 7. 数字人悬浮层 (固定不动) === */
+        .avatar-container {
+            position: fixed;
+            bottom: 0;
+            right: 5%;
+            width: 30vw;
+            max-width: 600px;
+            min-width: 280px;
+            z-index: 100;
+            pointer-events: none;
+            mix-blend-mode: screen;
+        }
+        .avatar-container video { width: 100%; display: block; }
+
+        /* 手机适配 */
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .lora-section { padding: 20px; justify-content: center; }
+            .glass-card { width: 95%; margin-top: -100px; }
+            .showcase-grid { flex-direction: row; gap: 10px; }
+            .img-box { height: 150px; width: 48%; }
+            .avatar-container { width: 80vw; right: -10%; }
+        }
+        /* === 8. 第三页：Workflow 工作流样式 === */
+        .workflow-section {
+            padding-left: 10%;
+            /* 这一页背景稍微偏蓝一点，体现科技感 */
+            background: linear-gradient(to right, rgba(10, 20, 40, 0.9) 0%, rgba(0,0,0,0) 100%);
+        }
+
+        .bento-container {
+            width: 650px;
+            /* 这一页不需要磨砂大卡片，而是直接展示格子，显得更硬核 */
+        }
+
+        .bento-container h2 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            color: #00ffcc; /* 换个颜色：赛博绿，区分上一页 */
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+        }
+
+        .bento-container p {
+            color: #ccc;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+
+        /* 核心布局：便当盒网格 */
+        .bento-grid {
+            display: grid;
+            /* 定义 3 列，高度自动 */
+            grid-template-columns: repeat(3, 1fr);
+            /* 定义 2 行，每行高 160px */
+            grid-template-rows: repeat(2, 160px); 
+            gap: 15px; /* 格子之间的间距 */
+        }
+
+        /* 每一个小格子 */
+        .grid-item {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            transition: transform 0.3s, border-color 0.3s;
+            cursor: pointer;
+        }
+
+        .grid-item:hover {
+            transform: scale(1.02);
+            border-color: #00ffcc;
+            box-shadow: 0 5px 15px rgba(0, 255, 204, 0.2);
+            z-index: 10;
+        }
+
+        /* 跨列设置：有的格子比较大 */
+        .item-large {
+            grid-column: span 2; /* 占据 2 列宽 */
+        }
+        .item-tall {
+            grid-row: span 2; /* 占据 2 行高 */
+        }
+
+        .grid-item img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        .grid-item:hover img { opacity: 1; }
+
+        /* 格子上的文字标签 */
+        .grid-label {
+            position: absolute;
+            bottom: 10px; left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        /* 手机适配补充 */
+        @media (max-width: 768px) {
+            .bento-container { width: 95%; margin-top: -80px;}
+            .bento-grid {
+                grid-template-columns: 1fr 1fr; /* 手机上变两列 */
+                grid-template-rows: auto;
+            }
+            .item-large { grid-column: span 2; } /* 大格子占满一行 */
+            .item-tall { grid-row: span 1; height: 200px; } /* 高格子变普通 */
+        }
+        /* === 9. 灯箱 (Lightbox) 查看大图样式 === */
+        .lightbox {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9); /* 深黑色半透明背景 */
+            z-index: 9999; /* 保证在最最顶层 (比数字人还高) */
+            display: none; /* 默认隐藏 */
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            cursor: zoom-out; /* 鼠标变成缩小图标 */
+        }
+
+        /* 激活状态 */
+        .lightbox.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            border: 2px solid #00ffcc; /* 给大图加个赛博绿边框 */
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
+            border-radius: 8px;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .lightbox.active img {
+            transform: scale(1); /* 弹窗打开时的放大动画 */
+        }
+
+        .lightbox-caption {
+            position: absolute;
+            bottom: 30px;
+            color: #fff;
+            font-size: 1.2rem;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+        /* === 10. 第四页：AI Showcase 影院样式 === */
+        .showcase-section {
+            padding-left: 10%;
+            /* 这一页背景偏紫，营造影视感 */
+            background: linear-gradient(to right, rgba(20, 0, 30, 0.9) 0%, rgba(0,0,0,0) 100%);
+        }
+
+        .cinema-container {
+            width: 700px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .cinema-container h2 {
+            font-size: 2.8rem;
+            color: #bd00ff; /* 霓虹紫 */
+            text-shadow: 0 0 10px rgba(189, 0, 255, 0.4);
+            margin-bottom: 5px;
+        }
+
+        .cinema-container p {
+            color: #ccc;
+            margin-bottom: 20px;
+        }
+
+        /* 视频播放器容器 */
+        .video-wrapper {
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+            background: #000;
+        }
+        
+        .video-wrapper video {
+            width: 100%;
+            display: block;
+            /* 确保视频不超过屏幕高度的 40%，防止在大屏上太高 */
+            max-height: 40vh; 
+            object-fit: contain; 
+        }
+
+        .video-label {
+            background: #111;
+            padding: 10px 15px;
+            color: #fff;
+            font-size: 0.9rem;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* 底部图片胶卷 (横向排列) */
+        .film-strip {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .art-box {
+            flex: 1; /* 平均分配宽度 */
+            height: 120px;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+            position: relative;
+            transition: transform 0.3s;
+        }
+
+        .art-box:hover {
+            transform: translateY(-5px);
+            border-color: #bd00ff;
+            box-shadow: 0 0 15px rgba(189, 0, 255, 0.3);
+        }
+
+        .art-box img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: opacity 0.3s;
+        }
+        
+        /* 手机适配补充 */
+        @media (max-width: 768px) {
+            .cinema-container { width: 95%; margin-top: -80px; }
+            .film-strip { overflow-x: auto; padding-bottom: 10px; } /* 手机上可以横向滑 */
+            .art-box { min-width: 120px; } /* 防止图片挤没了 */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 固定背景 -->
+    <div class="bg-container">
+        <img src="assets/bg.jpg" alt="Background">
+    </div>
+
+    <!-- 滚动容器 (这里是改动的重点) -->
+    <div class="scroll-wrapper">
+        
+        <!-- 第一页 -->
+        <section id="page1" class="hero-section section">
+            <div>
+                <h1>CREATOR ECHO</h1>
+                <div class="subtitle">AIGC Workflow / Python Dev / Art Director</div>
+            </div>
+            <a href="#page2" class="scroll-down">﹀</a>
+        </section>
+
+        <!-- 第二页 -->
+        <section id="page2" class="section lora-section">
+            <div class="glass-card">
+                <h2>01. LoRA Training</h2>
+                <p>
+                    精准控制生成的基石。我擅长训练高一致性的人物模型与特定艺术风格模型。
+                    <br><br>
+                    <span style="color: #00bfff; font-size: 0.9rem;">👇 把鼠标放在图片上查看 LoRA 效果</span>
+                </p>
+
+                <div class="showcase-grid">
+                    <div class="img-box">
+                        <img src="assets/char_before.png" class="img-before" alt="原图">
+                        <img src="assets/char_after.png" class="img-after" alt="LoRA效果">
+                        <div class="label">Character Consistency</div>
+                    </div>
+                    <div class="img-box">
+                        <img src="assets/style_before.png" class="img-before" alt="原图">
+                        <img src="assets/style_after.png" class="img-after" alt="LoRA效果">
+                        <div class="label">Style Transfer</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- 第三页：Workflow 工作流 -->
+        <section id="page3" class="section workflow-section">
+            <div class="bento-container">
+                <h2>02. AI Workflow</h2>
+                <p>
+                    基于 ComfyUI 的深度定制工作流。从复杂的节点逻辑搭建，到 ControlNet 精准控制与局部重绘修复。
+                </p>
+
+                <div class="bento-grid">
+                    <!-- 格子 1 (大)：展示 ComfyUI 复杂的节点连线图 -->
+                    <div class="grid-item item-large">
+                        <img src="assets/wf_nodes.png" alt="ComfyUI Nodes">
+                        <div class="grid-label">Complex Logic Nodes</div>
+                    </div>
+
+                    <!-- 格子 2 (高)：展示 ControlNet 骨架对比 (竖图) -->
+                    <div class="grid-item item-tall">
+                        <img src="assets/wf_controlnet.png" alt="ControlNet">
+                        <div class="grid-label">ControlNet / Pose</div>
+                    </div>
+
+                    <!-- 格子 3 (普通)：展示 Inpainting 局部重绘 -->
+                    <div class="grid-item">
+                        <img src="assets/wf_inpaint.png" alt="Inpainting">
+                        <div class="grid-label">Inpainting</div>
+                    </div>
+
+                    <!-- 格子 4 (普通)：展示 FLUX/Upscale 高清修复 -->
+                    <div class="grid-item">
+                        <img src="assets/wf_upscale.png" alt="Upscale">
+                        <div class="grid-label">FLUX Upscale</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- 第四页：AI 作品展示 (图片 + 漫剧视频) -->
+        <section id="page4" class="section showcase-section">
+            <div class="cinema-container">
+                <h2>03. AI Cinema & Gallery</h2>
+                <p>
+                    从静态的高质量生图，到动态的漫剧视频制作。
+                    结合 1.5/XL/FLUX 生态与 Wan 视频生成模型，实现全流程落地。
+                </p>
+
+                <!-- 1. 主视频展示区 (漫剧) -->
+                <div class="video-wrapper">
+                    <!-- controls: 显示播放进度条 -->
+                    <video controls poster="assets/comic_cover.png">
+                        <source src="assets/comic_clip.mp4" type="video/mp4">
+                        您的浏览器不支持视频标签。
+                    </video>
+                    <div class="video-label">
+                        <span>Project: Neon City</span>
+                        <span style="color:#bd00ff; font-size:0.8rem;">WAN 2.1 GENERATION</span>
+                    </div>
+                </div>
+
+                <!-- 2. 静态图片胶卷展示区 -->
+                <div class="film-strip">
+                    <!-- 图片1 -->
+                    <div class="art-box grid-item"> <!-- 加 grid-item 类是为了复用灯箱点击效果 -->
+                        <img src="assets/ai_art_1.png" alt="Flux Concept Art">
+                        <div class="grid-label" style="display:none;">Concept Art</div> <!-- 隐藏的标签供灯箱读取 -->
+                    </div>
+                    <!-- 图片2 -->
+                    <div class="art-box grid-item">
+                        <img src="assets/ai_art_2.png" alt="Character Design">
+                        <div class="grid-label" style="display:none;">Character Design</div>
+                    </div>
+                    <!-- 图片3 -->
+                    <div class="art-box grid-item">
+                        <img src="assets/ai_art_3.png" alt="Scene Rendering">
+                        <div class="grid-label" style="display:none;">Scene Rendering</div>
+                    </div>
+                    <!-- 图片4 -->
+                    <div class="art-box grid-item">
+                        <img src="assets/ai_art_4.png" alt="Product Design">
+                        <div class="grid-label" style="display:none;">Product Design</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- 你可以继续复制 section 添加第三页、第四页... -->
+
+    </div>
+
+    <!-- 数字人 (在容器外面，所以不随滚动条动) -->
+    <div class="avatar-container">
+        <video autoplay muted loop playsinline>
+            <source src="assets/avatar.webm" type="video/webm">
+        </video>
+    </div>
+    <!-- 灯箱容器 (默认隐藏，点击图片后显示) -->
+    <div id="lightbox" class="lightbox">
+        <img id="lightbox-img" src="" alt="Full View">
+        <div id="lightbox-caption" class="lightbox-caption"></div>
+    </div>
+
+    <!-- JavaScript 脚本 -->
+    <script>
+        // 获取灯箱元素
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+        const caption = document.getElementById('lightbox-caption');
+
+        // 给所有的 .grid-item 添加点击事件
+        document.querySelectorAll('.grid-item').forEach(item => {
+            item.addEventListener('click', () => {
+                // 1. 获取这个格子里的图片路径
+                const img = item.querySelector('img');
+                const src = img.src;
+                const alt = item.querySelector('.grid-label').innerText;
+
+                // 2. 设置给灯箱
+                lightboxImg.src = src;
+                caption.innerText = alt;
+
+                // 3. 显示灯箱
+                lightbox.classList.add('active');
+            });
+        });
+
+        // 点击灯箱任意位置关闭
+        lightbox.addEventListener('click', () => {
+            lightbox.classList.remove('active');
+        });
+    </script>
+</body>
+</html>
