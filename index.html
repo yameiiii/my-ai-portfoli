@@ -848,7 +848,7 @@
             if (!isAudioEnabled) {
                 // 开启
                 isAudioEnabled = true;
-                bgm.volume = 0.2; 
+                bgm.volume = 0.5; 
                 bgm.play().catch(e => console.error("BGM error:", e));
                 
                 audioBtn.innerHTML = "🔊 正在讲解";
@@ -878,12 +878,12 @@
         function playVoice(src) {
             if (!isAudioEnabled) return;
             avatarVo.src = src;
-            avatarVo.volume = 1.0;
+            avatarVo.volume = 0.7;
             avatarVo.play().catch(e => console.warn("Voice play error:", e));
 
             // 闪避效果
-            avatarVo.onplay = () => fadeAudio(bgm, 0.05);
-            avatarVo.onended = () => fadeAudio(bgm, 0.2);
+            avatarVo.onplay = () => fadeAudio(bgm, 0.5);
+            avatarVo.onended = () => fadeAudio(bgm, 0.8);
         }
 
         function fadeAudio(audio, targetVolume) {
